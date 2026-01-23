@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+requests
+yfinance==0.2.54
+pandas
+lxml

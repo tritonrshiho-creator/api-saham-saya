@@ -10,7 +10,7 @@ import time
 app = FastAPI()
 
 # --- PENGAMAN ---
-socket.setdefaulttimeout(3) 
+socket.setdefaulttimeout(20) 
 
 # --- DATABASE RINGAN (Hanya Saham Pilihan) ---
 # Kita batasi agar Server Gratisan tidak Timeout/Macet

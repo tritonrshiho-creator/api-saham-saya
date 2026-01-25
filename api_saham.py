@@ -9,34 +9,29 @@ import time
 
 app = FastAPI()
 
-# --- 1. PENGAMAN ANTI-MACET (WAJIB ADA) ---
-# Jika 3 detik tidak ada respon, POTONG KONEKSI!
+# --- PENGAMAN ---
 socket.setdefaulttimeout(3) 
 
-# --- LOAD DATABASE ---
+# --- DATABASE RINGAN (Hanya Saham Pilihan) ---
+# Kita batasi agar Server Gratisan tidak Timeout/Macet
 def update_database_saham():
-    print("⏳ Sedang memuat database saham...")
-    # Coba load online dulu
-    try:
-        url = "https://raw.githubusercontent.com/eschben/idx-companies/main/data/companies.json"
-        resp = requests.get(url, timeout=5)
-        if resp.status_code == 200:
-            data = resp.json()
-            # Filter saham 4 huruf
-            saham_list = [item['symbol'] + ".JK" for item in data if len(item['symbol']) == 4]
-            print(f"✅ DATA ONLINE: {len(saham_list)} Saham siap dipantau.")
-            return saham_list
-    except:
-        pass
-    # Fallback ke lokal
-    print(f"✅ DATA LOKAL: {len(database.semua_saham)} Saham siap dipantau.")
-    return database.semua_saham
+    # Daftar 60 Saham Paling Likuid & Sering Trading (Campuran Bluechip & Gorengan)
+    saham_pilihan = [
+        'BBRI.JK', 'BBCA.JK', 'BMRI.JK', 'BBNI.JK', 'TLKM.JK', 'ASII.JK', 'GOTO.JK', 'ANTM.JK', 'ADRO.JK', 'UNVR.JK',
+        'ICBP.JK', 'INDF.JK', 'KLBF.JK', 'BRIS.JK', 'MDKA.JK', 'PGEO.JK', 'AMRT.JK', 'INKP.JK', 'PTBA.JK', 'MEDC.JK',
+        'AKRA.JK', 'HRUM.JK', 'ITMG.JK', 'BUMI.JK', 'DEWA.JK', 'BREN.JK', 'TPIA.JK', 'BRPT.JK', 'SMGR.JK', 'INTP.JK',
+        'GGRM.JK', 'HMSP.JK', 'SIDO.JK', 'MAPI.JK', 'ACES.JK', 'SCMA.JK', 'MNCN.JK', 'TOWR.JK', 'EXCL.JK', 'ISAT.JK',
+        'CPIN.JK', 'JPFA.JK', 'EMTK.JK', 'ESSA.JK', 'MBMA.JK', 'NCKL.JK', 'UNTR.JK', 'BBTN.JK', 'BTPS.JK', 'SRTG.JK',
+        'PANI.JK', 'PTMP.JK', 'WIFI.JK', 'FREN.JK', 'ELSA.JK', 'RAJA.JK', 'DOID.JK', 'ENRG.JK', 'LSIP.JK', 'DSNG.JK'
+    ]
+    print(f"✅ MODE RINGAN: Memantau {len(saham_pilihan)} Saham Terpopuler.")
+    return saham_pilihan
 
 LIST_SAHAM_AKTIF = update_database_saham()
 
 @app.get("/")
 def home():
-    return {"status": "Server Ready (Fast Mode)"}
+    return {"status": "Server Ready (Light Mode)"}
 
 @app.get("/scan")
 def scan_dashboard(min_price: int = 50, max_price: int = 100000):
@@ -45,29 +40,26 @@ def scan_dashboard(min_price: int = 50, max_price: int = 100000):
     }
     
     total_saham = len(LIST_SAHAM_AKTIF)
-    print(f"🚀 Scanning {total_saham} saham... (Timeout 3 Detik)")
+    print(f"🚀 Scanning {total_saham} saham... (Target Cepat)")
     
     def process_ticker(data):
         index, ticker = data
-        # Print setiap saham biar kelihatan jalan atau macet
-        # Gunakan 'end=\r' biar barisnya tidak menuhin layar
-        if index % 5 == 0: # Print tiap 5 saham biar gak pusing
-            print(f"👉 [{index}/{total_saham}] Cek {ticker}...", end="\r")
+        # Print progress biar di log Render kelihatan jalan
+        if index % 5 == 0: 
+            print(f"👉 [{index+1}/{total_saham}] Cek {ticker}...")
         
         try:
             hasil = analisa_saham(ticker) 
             if not hasil: return None
             if hasil['harga'] < min_price or hasil['harga'] > max_price: return None
             return hasil
-        except Exception as e:
-            # Kalau error/timeout, LANGSUNG LEWATI. Jangan ditunggu.
+        except:
             return None
 
-    # Siapkan data dengan nomor urut
     target_scan = list(enumerate(LIST_SAHAM_AKTIF))
 
-    # Gunakan 20 Worker biar ngebut (karena kita sudah punya timeout, aman)
-    with ThreadPoolExecutor(max_workers=20) as executor:
+    # Gunakan 10 Worker (Cukup untuk 60 saham, selesai dalam ~10 detik)
+    with ThreadPoolExecutor(max_workers=10) as executor:
         results = executor.map(process_ticker, target_scan)
         
         for hasil in results:
@@ -77,11 +69,12 @@ def scan_dashboard(min_price: int = 50, max_price: int = 100000):
                 if "BSJP" in hasil['kategori']: dashboard_data['bsjp'].append(hasil)
                 if "ACCUMULATION" in hasil['info_paus']: dashboard_data['accumulation'].append(hasil)
 
-    print(f"\n✅ Scan Selesai! Mengirim data ke HP...")
+    print(f"✅ Scan Selesai! Mengirim data ke HP...")
     return dashboard_data
 
 @app.get("/cari")
 def cari_saham(ticker: str):
+    # Fitur Cari tetap bisa cari SEMUA saham (bukan cuma yg 60 tadi)
     print(f"🔎 Mencari: {ticker}")
     kode_bersih = ticker.upper().replace(".JK", "") + ".JK"
     try:
@@ -92,4 +85,4 @@ def cari_saham(ticker: str):
         return {"status": "error"}
 
 if __name__ == "__main__":
-    uvicorn.run("api_saham:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("api_saham:app", host="0.0.0.0", port=8000)

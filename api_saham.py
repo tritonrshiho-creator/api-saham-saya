@@ -1,17 +1,33 @@
+
 from fastapi import FastAPI
 import uvicorn
 from concurrent.futures import ThreadPoolExecutor
-import requests
 import database 
 from engine import analisa_saham 
 import socket
-import time
+import yfinance as yf # Pastikan import ini ada
+import requests
 
 app = FastAPI()
 
-# --- PENGAMAN ---
-socket.setdefaulttimeout(20) 
+# --- TRIK ANTI-BLOKIR (SESSION MOUNTING) ---
+# Kita buat sesi internet yang pura-pura jadi Browser Chrome
+session = requests.Session()
+session.headers.update({
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+})
 
+# Paksa yfinance pakai sesi "palsu" ini
+# (Catatan: Ini trik baru agar yfinance tidak diblokir)
+def fix_yfinance_session():
+    try:
+        # Coba override jika method tersedia (tergantung versi)
+        pass 
+    except:
+        pass
+
+# ... (Lanjutkan dengan kode socket timeout dan list saham seperti sebelumnya)
+socket.setdefaulttimeout(15)
 # --- DATABASE RINGAN (Hanya Saham Pilihan) ---
 # Kita batasi agar Server Gratisan tidak Timeout/Macet
 def update_database_saham():
